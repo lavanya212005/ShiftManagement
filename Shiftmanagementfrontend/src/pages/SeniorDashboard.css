@@ -1,0 +1,144 @@
+/* src/pages/SeniorDashboard.css */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.record-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  background: rgba(30, 41, 59, 0.3);
+  transition: all var(--transition-speed) ease;
+}
+
+.record-area:hover {
+  border-color: var(--primary-color);
+  background: var(--primary-light);
+}
+
+.record-btn {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--surface-color-hover), var(--surface-color));
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 1.5rem;
+  transition: all var(--transition-speed) ease;
+}
+
+.record-btn .mic-icon {
+  font-size: 3rem;
+}
+
+.record-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-lg), 0 0 15px var(--primary-light);
+}
+
+.record-btn.recording {
+  background: linear-gradient(135deg, var(--danger-color), #c0392b);
+}
+
+.record-hint {
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.transcription-area {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.transcription-box {
+  background: var(--bg-main);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--primary-color);
+  margin: 1rem 0;
+  font-size: 1.1rem;
+}
+
+.insight-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tag.problem {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.tag.solution {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+
+.logs-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.log-item {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+}
+
+.log-time {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.log-content {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.log-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.log-status.success {
+  color: var(--success-color);
+}

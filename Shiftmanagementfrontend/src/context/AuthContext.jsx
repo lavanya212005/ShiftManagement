@@ -1,56 +1,46 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null); // null means not logged in
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  // Expected roles: 'admin', 'senior', 'junior'
+  const mockUsers = [
+    { username: 'admin', password: 'password123', role: 'admin', name: 'Super Admin' },
+    { username: 'senior', password: 'password123', role: 'senior', name: 'Senior Tech Ravi' },
+    { username: 'junior', password: 'password123', role: 'junior', name: 'Junior Tech Arjun' }
+  ];
+
+  const login = (username, password) => {
+    setError('');
+    const foundUser = mockUsers.find(
+      (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password
+    );
+
+    if (foundUser) {
+      setUser({
+        name: foundUser.name,
+        role: foundUser.role,
+        username: foundUser.username
+      });
+      return true; // success
+    } else {
+      setError('Invalid username or password');
+      return false; // failure
     }
-    setLoading(false);
-  }, []);
-
-  const login = async (email, password, role) => {
-    const mockUser = {
-      id: 1,
-      name: email.split('@')[0],
-      email,
-      role,
-      avatar: `https://ui-avatars.com/api/?name=${email.split('@')[0]}&background=667eea&color=fff&size=128`
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    return { success: true, user: mockUser };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
-  };
-
-  const value = {
-    user,
-    login,
-    logout,
-    loading
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider value={{ user, login, logout, error }}>
+      {children}
     </AuthContext.Provider>
   );
 };
