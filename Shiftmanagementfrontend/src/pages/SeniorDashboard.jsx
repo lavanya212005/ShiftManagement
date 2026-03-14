@@ -7,6 +7,12 @@ const SeniorDashboard = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcription, setTranscription] = useState('');
+  const [currentAudioUrl, setCurrentAudioUrl] = useState(null);
+  const [logs, setLogs] = useState([
+    { id: 1, time: 'Today, 10:30 AM', content: 'Calibrated the pressure sensor on Boiler #2.', status: 'Indexed' },
+    { id: 2, time: 'Yesterday, 4:15 PM', content: 'Replaced the cooling fluid pump for Assembly Line B.', status: 'Indexed' },
+    { id: 3, time: 'Yesterday, 9:00 AM', content: 'Addressed misalignment in the robotic arm joint.', status: 'Indexed' }
+  ]);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const audioChunks = React.useRef([]);
 
@@ -22,6 +28,8 @@ const SeniorDashboard = () => {
 
       recorder.onstop = async () => {
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(audioBlob);
+        setCurrentAudioUrl(url);
         await transcribeWithWhisper(audioBlob);
         stream.getTracks().forEach(track => track.stop());
       };
@@ -30,6 +38,7 @@ const SeniorDashboard = () => {
       setMediaRecorder(recorder);
       setIsRecording(true);
       setTranscription('');
+      setCurrentAudioUrl(null);
     } catch (err) {
       console.error('Error accessing microphone:', err);
       alert('Could not access microphone. Please ensure permissions are granted.');
@@ -81,6 +90,27 @@ const SeniorDashboard = () => {
     }
   };
 
+  const handleSave = () => {
+    if (!transcription) return;
+
+    const newLog = {
+      id: Date.now(),
+      time: 'Just now',
+      content: transcription,
+      audioUrl: currentAudioUrl,
+      status: 'Indexed'
+    };
+
+    setLogs([newLog, ...logs]);
+    setTranscription('');
+    setCurrentAudioUrl(null);
+  };
+
+  const playAudio = (url) => {
+    const audio = new Audio(url);
+    audio.play();
+  };
+
   const toggleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -127,7 +157,7 @@ const SeniorDashboard = () => {
                 <span className="tag problem">AI-Detected Issue</span>
                 <span className="tag solution">Fix Captured</span>
               </div>
-              <Button variant="primary" style={{ width: '100%', marginTop: '1rem' }}>
+              <Button variant="primary" onClick={handleSave} style={{ width: '100%', marginTop: '1rem' }}>
                 Save to Knowledge Graph
               </Button>
             </div>
@@ -136,21 +166,26 @@ const SeniorDashboard = () => {
 
         <Card title="Recent Logs" className="logs-card">
           <ul className="logs-list">
-            <li className="log-item">
-              <div className="log-time">Today, 10:30 AM</div>
-              <div className="log-content">Calibrated the pressure sensor on Boiler #2.</div>
-              <div className="log-status success">Indexed</div>
-            </li>
-            <li className="log-item">
-              <div className="log-time">Yesterday, 4:15 PM</div>
-              <div className="log-content">Replaced the cooling fluid pump for Assembly Line B.</div>
-              <div className="log-status success">Indexed</div>
-            </li>
-            <li className="log-item">
-              <div className="log-time">Yesterday, 9:00 AM</div>
-              <div className="log-content">Addressed misalignment in the robotic arm joint.</div>
-              <div className="log-status success">Indexed</div>
-            </li>
+            {logs.map(log => (
+              <li key={log.id} className="log-item">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="log-time">{log.time}</div>
+                    <div className="log-content">{log.content}</div>
+                  </div>
+                  {log.audioUrl && (
+                    <button 
+                      onClick={() => playAudio(log.audioUrl)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem' }}
+                      title="Play Voice Log"
+                    >
+                      🔊
+                    </button>
+                  )}
+                </div>
+                <div className="log-status success">{log.status}</div>
+              </li>
+            ))}
           </ul>
         </Card>
       </div>
