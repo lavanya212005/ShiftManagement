@@ -45,7 +45,7 @@ const Login = () => {
         <h1>ShiftSync <span>Agent</span></h1>
         <p>The "Tribal Knowledge" Transfer Platform for MSMEs</p>
         <div style={{color: '#22c55e', fontSize: '0.8rem', marginTop: '10px', fontWeight: 'bold'}}>
-          ✓ Master Login System Ready (All Roles)
+          ✓ Master Login System (Mock Enabled)
         </div>
       </div>
 

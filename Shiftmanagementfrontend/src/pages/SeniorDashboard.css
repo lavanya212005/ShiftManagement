@@ -139,6 +139,22 @@
   letter-spacing: 0.5px;
 }
 
-.log-status.success {
-  color: var(--success-color);
+.record-btn.processing {
+  background: var(--text-muted);
+  cursor: wait;
+}
+
+.record-btn.processing .mic-icon {
+  animation: slow-spin 2s linear infinite;
+}
+
+@keyframes slow-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.settings-area .premium-input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
