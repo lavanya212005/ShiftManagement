@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import SeniorDashboard from './pages/SeniorDashboard';
 import JuniorDashboard from './pages/JuniorDashboard';
+import SignUp from './pages/SignUp';
 
 import './App.css';
 
@@ -38,6 +39,7 @@ function App() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
           
           <Route 
             path="/admin/*" 

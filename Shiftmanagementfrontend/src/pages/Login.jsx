@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import './Login.css';
@@ -84,6 +84,12 @@ const Login = () => {
               Sign In
             </Button>
           </form>
+
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <p className="demo-hint">
+              New Technician? <Link to="/signup" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 'bold' }}>Register Here</Link>
+            </p>
+          </div>
 
           <div className="demo-credentials">
             <h4>Quick Access Portals</h4>
