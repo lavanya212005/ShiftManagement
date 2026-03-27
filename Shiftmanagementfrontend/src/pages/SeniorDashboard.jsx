@@ -158,11 +158,12 @@ const SeniorDashboard = () => {
               role: 'system',
               content: `You are an industrial NLP agent. Extract structured data from this technician's log.
               Analyze the text and return a JSON object with:
+              - title: A concise 3-5 word summary of the problem (e.g. "Boiler 2 Pressure Offset")
               - machine: The specific machine or system mentioned (e.g. "Boiler 2")
               - issue: Briefly summarize the core problem (e.g. "Leaking Valve")
               - tags: An array of 2-3 short descriptive tags.
               
-              Example: "Fixed the broken gear on CNC-01" -> {"machine": "CNC-01", "issue": "Broken Gear", "tags": ["CNC-01", "Gear Fix", "Mechanical"]}`
+              Example: "Fixed the broken gear on CNC-01" -> {"title": "CNC-01 Broken Gear Fix", "machine": "CNC-01", "issue": "Broken Gear", "tags": ["CNC-01", "Gear Fix", "Mechanical"]}`
             },
             { role: 'user', content: finalText }
           ],
@@ -208,19 +209,20 @@ const SeniorDashboard = () => {
         return;
       }
       try {
-        const response = await fetch('http://localhost:8000/logs', {
+        const response = await fetch('/logs', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
           const data = await response.json();
           // Map backend format to frontend format
           const formattedLogs = data.map((l) => ({
-            id: l.id, // Assuming backend provides an ID
-            time: new Date(l.timestamp).toLocaleString(), // Format timestamp for display
-            content: l.content,
+            id: l.id, 
+            title: l.title || "Technician Insight",
+            time: new Date(l.timestamp).toLocaleString(), 
+            content: l.transcript || l.content,
             audioUrl: l.audio_url,
-            status: 'Verified', // Assuming logs from backend are verified
-            tags: l.tags
+            status: 'Indexed',
+            tags: [l.machine, l.issue].filter(Boolean)
           }));
           setLogs(formattedLogs); // Replace existing logs with fetched ones
         } else {
@@ -242,67 +244,68 @@ const SeniorDashboard = () => {
       return;
     }
 
-    const newLogPayload = {
-      content: transcription,
-      timestamp: new Date().toISOString(), // Use ISO string for backend
-      audio_url: currentAudioUrl,
-      tags: [
-        extractedInsight?.machine ? `[${extractedInsight.machine}]` : '',
-        extractedInsight?.issue ? `[${extractedInsight.issue}]` : '',
-        ...(extractedInsight?.tags || [])
-      ].filter(t => t !== '')
-    };
+    setIsProcessing(true);
+    let finalAudioUrl = currentAudioUrl;
 
     try {
-      const response = await fetch('http://localhost:8000/logs', {
+      // PHASE 1: Upload Audio if it exists and is a local blob
+      if (currentAudioUrl && currentAudioUrl.startsWith('blob:')) {
+        const audioBlob = await fetch(currentAudioUrl).then(r => r.blob());
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'recording.webm');
+
+        const uploadRes = await fetch('/upload-audio', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.ok ? await uploadRes.json() : null;
+          if (uploadData && uploadData.url) {
+            finalAudioUrl = uploadData.url;
+          }
+        }
+      }
+
+      // PHASE 2: Save metadata and link to Knowledge Graph
+      const response = await fetch('/logs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(newLogPayload)
+        body: JSON.stringify({
+          transcript: transcription,
+          audio_url: finalAudioUrl
+        })
       });
 
       if (response.ok) {
-        const savedLog = await response.json(); // Backend might return the saved log with an ID
-        setLogs([{ 
-          id: savedLog.id || Date.now(), // Use backend ID if available, fallback to Date.now()
-          time: new Date(savedLog.timestamp || newLogPayload.timestamp).toLocaleString(),
-          content: savedLog.content,
-          audioUrl: savedLog.audio_url,
-          status: 'Verified',
-          tags: savedLog.tags
-        }, ...logs]);
+        const result = await response.json();
+        // Add to local state list
+        const newLog = {
+          id: Date.now(),
+          title: result.entities?.title || "Technician Insight",
+          time: new Date().toLocaleString(),
+          content: transcription,
+          audioUrl: finalAudioUrl,
+          status: 'Indexed',
+          tags: [result.entities?.machine, result.entities?.issue].filter(Boolean)
+        };
+        setLogs([newLog, ...logs]);
         setTranscription('');
         setCurrentAudioUrl(null);
         setExtractedInsight(null);
+        alert("✅ Insight saved and indexed in Knowledge Graph!");
       } else {
-        console.error('Failed to save log to backend:', response.status, response.statusText);
-        alert('Failed to save log to backend. Please try again.');
-        // Fallback to local if backend is down or error
-        setLogs([{ 
-          ...newLogPayload, 
-          id: Date.now(), 
-          time: new Date().toLocaleString(), // Format for local display
-          status: 'Verified' 
-        }, ...logs]);
-        setTranscription('');
-        setCurrentAudioUrl(null);
-        setExtractedInsight(null);
+        throw new Error('Failed to save log to Knowledge Graph');
       }
     } catch (err) {
-      console.error('Failed to save log to backend:', err);
-      alert('Network error or backend is unreachable. Saving locally.');
-      // Fallback to local if backend is down
-      setLogs([{ 
-        ...newLogPayload, 
-        id: Date.now(), 
-        time: new Date().toLocaleString(), // Format for local display
-        status: 'Verified' 
-      }, ...logs]);
-      setTranscription('');
-      setCurrentAudioUrl(null);
-      setExtractedInsight(null);
+      console.error('Save Error:', err);
+      alert('Error: ' + err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -397,8 +400,11 @@ const SeniorDashboard = () => {
               <li key={log.id} className="log-item">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div className="log-time">{log.time}</div>
-                    <div className="log-content">{log.content}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4 style={{ margin: 0, color: 'var(--primary-color)' }}>{log.title || "Untitled Insight"}</h4>
+                      <div className="log-time" style={{ marginBottom: 0 }}>• {log.time}</div>
+                    </div>
+                    <div className="log-content" style={{ marginTop: '4px' }}>{log.content}</div>
                     <div className="log-tags" style={{ marginTop: '0.5rem', display: 'flex', gap: '5px' }}>
                       {log.tags && log.tags.map((tag, i) => (
                         <span key={i} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', color: 'var(--text-secondary)' }}>
@@ -410,7 +416,7 @@ const SeniorDashboard = () => {
                   {log.audioUrl && (
                     <button 
                       onClick={() => playAudio(log.audioUrl)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem', color: 'var(--accent)', display: 'flex', alignItems: 'center' }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0.5rem', color: 'var(--primary-color)', display: 'flex', alignItems: 'center' }}
                       title="Play Voice Log"
                     >
                       <MdHearing />

@@ -19,11 +19,13 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/" replace />;
   }
   
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  const userRole = user.role?.toLowerCase();
+  
+  if (allowedRoles && !allowedRoles.map(r => r.toLowerCase()).includes(userRole)) {
     // If not allowed, redirect to their primary dashboard
-    if (user.role === 'admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'senior') return <Navigate to="/senior" replace />;
-    if (user.role === 'junior') return <Navigate to="/junior" replace />;
+    if (userRole === 'admin') return <Navigate to="/admin" replace />;
+    if (userRole === 'senior') return <Navigate to="/senior" replace />;
+    if (userRole === 'junior') return <Navigate to="/junior" replace />;
     return <Navigate to="/" replace />;
   }
   
@@ -31,7 +33,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  console.log('[App State] User:', user?.username, '| Loading:', loading);
 
   return (
     <div className="app-container">

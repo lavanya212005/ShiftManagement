@@ -7,6 +7,7 @@ import './JuniorDashboard.css';
 const JuniorDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [matchingLog, setMatchingLog] = useState(null);
+  const [searchMessage, setSearchMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isListening, setIsListening] = useState(false);
 
@@ -16,7 +17,8 @@ const JuniorDashboard = () => {
     if (query.length === 0) return;
 
     setIsSearching(true);
-    setMatchingLog(null); // Clear previous results
+    setMatchingLog(null);
+    setSearchMessage('');
 
     const token = localStorage.getItem('shiftsync_token');
     if (!token) {
@@ -25,86 +27,31 @@ const JuniorDashboard = () => {
       return;
     }
 
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    if (!apiKey || apiKey === 'your_openai_api_key_here') {
-      alert("System Configuration Error: OpenAI API Key is missing in .env file.");
-      setIsSearching(false); // Ensure searching state is reset
-      return;
-    }
-
-    const openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true }); // Initialize OpenAI client
-
     try {
-      // First, fetch all logs from the backend
-      const logsResponse = await fetch('http://localhost:8000/logs', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (!logsResponse.ok) {
-        throw new Error(`Failed to fetch logs: ${logsResponse.statusText}`);
-      }
-      const allLogs = await logsResponse.json();
-
-      // Use AI to find the best matching logs from the fetched data using native fetch
-      const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('/search', {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert industrial knowledge assistant. Search through the technical logs and return the ONE best matching log that is semantically relevant to the junior technician's problem: "${query}".
-              
-              Logs: ${JSON.stringify(allLogs)}
-
-              If a match is found, return ONLY the log object as JSON.
-              If NO relevant logs are found, return exactly the string: NONE`
-            }
-          ],
-          temperature: 0,
-        }),
+        body: JSON.stringify({ query })
       });
 
-      if (!chatResponse.ok) throw new Error('AI search failed');
-      const chatData = await chatResponse.json();
-      let aiResponseContent = chatData.choices[0].message.content.trim();
-
-      // HEALING LOGIC: Strip Markdown code blocks if present
-      if (aiResponseContent.includes('```')) {
-        aiResponseContent = aiResponseContent.replace(/```(json)?/g, '').replace(/```/g, '').trim();
-      }
-
-      if (aiResponseContent === 'NONE') {
-        alert("Please concern the senior technician. No direct matches found in Tribal Knowledge.");
-      } else {
-        try {
-          const match = JSON.parse(aiResponseContent);
-          setMatchingLog(match);
-        } catch (e) {
-          console.error('JSON Parse Error:', e, 'Raw:', aiResponseContent);
-          alert("Search Error: Could not determine match. Please try a different query.");
+      if (!response.ok) throw new Error('Search failed');
+      
+      const data = await response.json();
+      if (data.match) {
+        setMatchingLog(data.match);
+        // Important: Still show the safety message from backend if provided
+        if (data.message) {
+          setSearchMessage(data.message);
         }
+      } else {
+        setSearchMessage(data.message || "No exact match found. Please contact a senior technician to resolve this issue.");
       }
     } catch (err) {
-      console.error('AI Matching Error:', err);
-      
-      if (err.message.includes('quota') || err.message.includes('429')) {
-         console.warn('OpenAI Quota Exceeded. Activating Smart Search Fallback...');
-         // Simple keyword matching as a fallback
-         const mockMatch = allLogs.find(l => 
-            l.content.toLowerCase().includes(query.toLowerCase()) || 
-            (l.tags && l.tags.some(t => t.toLowerCase().includes(query.toLowerCase())))
-         ) || allLogs[0]; // Fallback to first log if nothing matches
-         
-         setMatchingLog(mockMatch);
-         alert("💡 OpenAI Quota Exceeded: Using Local Keyword Search for your demo.");
-      } else {
-         alert("Search Error: " + err.message);
-      }
+      console.error('Search Error:', err);
+      setSearchMessage("Search Error: " + err.message);
     } finally {
       setIsSearching(false);
     }
@@ -186,11 +133,29 @@ const JuniorDashboard = () => {
         </form>
       </div>
 
+      {searchMessage && (
+        <div className="results-section animate-fade-in" style={{ marginBottom: matchingLog ? '1rem' : '0' }}>
+          <Card className={`result-card ${!matchingLog ? 'error-card' : 'warning-card'}`} style={{ borderTop: !matchingLog ? '4px solid var(--danger-color)' : '4px solid var(--warning-color)' }}>
+            <div className="error-message">
+              <span>{matchingLog ? '⚠️' : '🚫'}</span>
+              <p><strong>Safety Protocol:</strong> {searchMessage}</p>
+            </div>
+            {!matchingLog && (
+              <Button variant="secondary" style={{ marginTop: '1rem', width: '100%' }} onClick={() => window.location.reload()}>
+                Refresh Knowledge Graph
+              </Button>
+            )}
+          </Card>
+        </div>
+      )}
+
       {matchingLog && (
         <div className="results-section animate-fade-in">
           <Card title="Agent Found a Match!" className="result-card">
             <div className="match-header">
-              <div className="match-confidence">98% Match</div>
+              <div className="match-confidence">
+                {matchingLog.confidence ? `${(matchingLog.confidence * 100).toFixed(0)}% Match` : '98% Match'}
+              </div>
               <div className="match-author">Source: {matchingLog.author || 'Senior Tech Ravi'}</div>
             </div>
             
@@ -198,14 +163,14 @@ const JuniorDashboard = () => {
               <button 
                 className="play-btn" 
                 onClick={() => {
-                  if (matchingLog.audioUrl) {
-                    new Audio(matchingLog.audioUrl).play();
+                  if (matchingLog.audio_url) {
+                    new Audio(matchingLog.audio_url).play();
                   } else {
                     alert("No audio recording available for this legacy log.");
                   }
                 }}
               >
-                {matchingLog.audioUrl ? '▶️' : '🔇'}
+                {matchingLog.audio_url ? '▶️' : '🔇'}
               </button>
               <div className="waveform">
                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
@@ -214,15 +179,28 @@ const JuniorDashboard = () => {
             </div>
 
             <div className="solution-details">
-              <h4>Transcription</h4>
-              <p className="quote">"{matchingLog.content}"</p>
-              
-              <div className="ar-guide-preview">
-                <div className="ar-image-placeholder">
-                  [ AR Guide Preview: Analyzing components related to capture ]
+              {matchingLog.root_cause && (
+                <div className="analysis-block">
+                  <h4 style={{ color: 'var(--danger-color)' }}>🛠️ Root Cause Identification</h4>
+                  <p className="quote">{matchingLog.root_cause}</p>
                 </div>
-                <Button variant="secondary" className="ar-btn">Launch AR Overlay Guide</Button>
-              </div>
+              )}
+              
+              {matchingLog.solution && (
+                <div className="analysis-block">
+                  <h4 style={{ color: 'var(--success-color)' }}>✅ Actionable Solution</h4>
+                  <div className="solution-steps" style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid var(--success-color)' }}>
+                    {matchingLog.solution}
+                  </div>
+                </div>
+              )}
+
+              {!matchingLog.root_cause && (
+                <>
+                  <h4>Original Transcription</h4>
+                  <p className="quote">"{matchingLog.transcript || matchingLog.content}"</p>
+                </>
+              )}
             </div>
           </Card>
         </div>

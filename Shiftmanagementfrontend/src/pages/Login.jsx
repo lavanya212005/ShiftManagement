@@ -13,13 +13,33 @@ const Login = () => {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    if (!loading && user) {
-      const rolePath = `/${user.role}`;
-      navigate(rolePath);
+    if (user) {
+      window.lastAuthUser = user; // Global debug help
+      console.log('--- RE-ROUTING ---');
+      console.log('User:', user.username, 'Role:', user.role);
+      const rolePath = `/${user.role?.toLowerCase() || 'junior'}`;
+      console.log('Navigating to:', rolePath);
+      navigate(rolePath, { replace: true });
     }
-  }, [user, navigate, loading]);
+  }, [user, navigate]);
 
-  if (loading) return <div className="loading-screen">Authenticating...</div>;
+  if (loading) return (
+    <div className="loading-screen animate-pulse">
+      <div className="loading-content">
+        <div className="spinner"></div>
+        <p>Authenticating with ShiftSync Agent...</p>
+      </div>
+    </div>
+  );
+
+  if (user) return (
+    <div className="loading-screen">
+      <div className="loading-content">
+        <p style={{color: '#22c55e', fontWeight: 'bold'}}>✓ Login Successful!</p>
+        <p>Redirecting to {user.role?.toUpperCase()} Dashboard...</p>
+      </div>
+    </div>
+  );
 
   const handleQuickLogin = (u, p) => {
     setUsername(u);
