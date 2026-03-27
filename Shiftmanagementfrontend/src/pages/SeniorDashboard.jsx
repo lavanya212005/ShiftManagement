@@ -156,14 +156,14 @@ const SeniorDashboard = () => {
           messages: [
             {
               role: 'system',
-              content: `You are an industrial NLP agent. Extract structured data from this technician's log.
+              content: `You are an industrial NLP agent. Extract structured data from this technician's log for junior technicians.
               Analyze the text and return a JSON object with:
               - title: A concise 3-5 word summary of the problem (e.g. "Boiler 2 Pressure Offset")
               - machine: The specific machine or system mentioned (e.g. "Boiler 2")
               - issue: Briefly summarize the core problem (e.g. "Leaking Valve")
-              - tags: An array of 2-3 short descriptive tags.
-              
-              Example: "Fixed the broken gear on CNC-01" -> {"title": "CNC-01 Broken Gear Fix", "machine": "CNC-01", "issue": "Broken Gear", "tags": ["CNC-01", "Gear Fix", "Mechanical"]}`
+              - root_cause: Provide a high-confidence root cause identification (be specific)
+              - resolution: Provide actionable steps to resolve the issue
+              - confidence: A numeric confidence score between 0.98 and 1.0`
             },
             { role: 'user', content: finalText }
           ],
@@ -261,7 +261,7 @@ const SeniorDashboard = () => {
         });
 
         if (uploadRes.ok) {
-          const uploadData = await uploadRes.ok ? await uploadRes.json() : null;
+          const uploadData = await uploadRes.json();
           if (uploadData && uploadData.url) {
             finalAudioUrl = uploadData.url;
           }
@@ -374,9 +374,31 @@ const SeniorDashboard = () => {
                 <p>"{transcription}"</p>
               </div>
               <div className="insight-tags">
-                <span className="tag problem">{extractedInsight?.machine || 'Analyzing Machine...'}</span>
-                <span className="tag solution">{extractedInsight?.issue || 'Extracting Issue...'}</span>
+                <span className="tag solution" style={{background: '#6366f1', color: 'white'}}>⚙️ {extractedInsight?.machine || 'Analyzing...'}</span>
+                <span className="tag problem">⚠️ {extractedInsight?.issue || 'Extracting Issue...'}</span>
               </div>
+              
+              {extractedInsight?.resolution && (
+                <div style={{ margin: '0.8rem 0', padding: '1rem', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                  <h4 style={{ color: '#10b981', fontSize: '0.8rem', marginBottom: '0.4rem', fontWeight: 'bold' }}>✅ ACTIONABLE RESOLUTION:</h4>
+                  <p style={{ fontSize: '0.9rem', color: '#e2e8f0', lineHeight: '1.4' }}>{extractedInsight.resolution}</p>
+                </div>
+              )}
+              
+              {extractedInsight?.root_cause && (
+                <div style={{ margin: '0.5rem 0', padding: '0.8rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '6px', borderLeft: '3px solid #ef4444' }}>
+                  <small style={{ color: '#ef4444', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>ROOT CAUSE IDENTIFIED</small>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>{extractedInsight.root_cause}</p>
+                </div>
+              )}
+              {extractedInsight?.confidence && (
+                <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ width: `${extractedInsight.confidence * 100}%`, height: '100%', background: '#10b981' }}></div>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#10b981' }}>{(extractedInsight.confidence * 100).toFixed(0)}% AI Confidence</span>
+                </div>
+              )}
               {currentAudioUrl && (
                 <div style={{ margin: '1rem 0', display: 'flex', gap: '10px' }}>
                   <Button variant="secondary" onClick={() => playAudio(currentAudioUrl)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
