@@ -36,6 +36,15 @@ function App() {
   const { user, loading } = useAuth();
   console.log('[App State] User:', user?.username, '| Loading:', loading);
 
+  if (loading) return (
+    <div className="loading-screen animate-pulse">
+      <div className="loading-content">
+        <div className="spinner"></div>
+        <p>Restoring ShiftSync Session...</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="app-container">
       {user && <Navbar />}

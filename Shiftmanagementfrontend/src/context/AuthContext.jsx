@@ -11,8 +11,29 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Session restoration disabled to always start from login
-    setLoading(false);
+    const restoreSession = async () => {
+      const token = localStorage.getItem('shiftsync_token');
+      if (token) {
+        try {
+          const response = await fetch('/users/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const userData = await response.json();
+            userData.role = userData.role?.toLowerCase() || 'junior';
+            setUser(userData);
+          } else {
+            localStorage.removeItem('shiftsync_token');
+          }
+        } catch (err) {
+          console.error('Session restoration failed:', err);
+        }
+      }
+      setLoading(false);
+    };
+    restoreSession();
   }, []);
 
   const login = async (username, password) => {
